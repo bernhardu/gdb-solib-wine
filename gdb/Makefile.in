@@ -887,6 +887,7 @@ ALL_TARGET_OBS = \
 	solib-dsbt.o \
 	solib-frv.o \
 	solib-svr4.o \
+	solib-wine.o \
 	sparc-linux-tdep.o \
 	sparc-netbsd-tdep.o \
 	sparc-obsd-tdep.o \
@@ -1498,6 +1499,7 @@ HFILES_NO_SRCDIR = \
 	solib-aix.h \
 	solib-darwin.h \
 	solib-svr4.h \
+	solib-wine.h \
 	solib-target.h \
 	solist.h \
 	source.h \
@@ -1854,6 +1856,7 @@ ALLDEPFILES = \
 	solib-aix.c \
 	solib-rocm.c \
 	solib-svr4.c \
+	solib-wine.c \
 	sparc-linux-nat.c \
 	sparc-linux-tdep.c \
 	sparc-nat.c \

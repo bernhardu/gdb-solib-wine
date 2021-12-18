@@ -37,6 +37,7 @@
 
 #include "amd64-tdep.h"
 #include "solib-svr4.h"
+#include "solib-wine.h"
 #include "xml-syscall.h"
 #include "glibc-tdep.h"
 #include "arch/amd64.h"
@@ -2242,6 +2243,22 @@ amd64_x32_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
     (gdbarch, linux_ilp32_fetch_link_map_offsets);
 }
 
+static bool amd64_linux_get_tib_addr(CORE_ADDR *tib_addr)
+{
+  if (target_has_registers()) {
+    struct regcache *regcache = get_thread_regcache(inferior_thread());
+    regcache_cooked_read_unsigned(regcache, AMD64_GSBASE_REGNUM, tib_addr);
+    return true;
+  }
+  return false;
+}
+
+static void amd64_linux_wine_init_abi(struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  amd64_linux_init_abi(info, gdbarch);
+  set_solib_wine(gdbarch, amd64_linux_get_tib_addr);
+}
+
 void _initialize_amd64_linux_tdep ();
 void
 _initialize_amd64_linux_tdep ()
@@ -2250,4 +2267,6 @@ _initialize_amd64_linux_tdep ()
 			  GDB_OSABI_LINUX, amd64_linux_init_abi);
   gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x64_32,
 			  GDB_OSABI_LINUX, amd64_x32_linux_init_abi);
+  gdbarch_register_osabi (bfd_arch_i386, bfd_mach_x86_64,
+        GDB_OSABI_WINE_LINUX, amd64_linux_wine_init_abi);
 }

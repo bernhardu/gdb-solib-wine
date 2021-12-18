@@ -38,6 +38,8 @@ struct lm_info
 
 using lm_info_up = std::unique_ptr<lm_info>;
 
+struct solib_ops;
+
 struct solib : intrusive_list_node<solib>
 {
   /* Free symbol-file related contents of SO and reset for possible reloading
@@ -93,6 +95,8 @@ struct solib : intrusive_list_node<solib>
      that supports outputting multiple segments once the related code
      supports them.  */
   CORE_ADDR addr_low = 0, addr_high = 0;
+
+  const solib_ops *wine_so_ops = nullptr;
 };
 
 struct solib_ops
