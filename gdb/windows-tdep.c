@@ -867,6 +867,8 @@ windows_get_siginfo_type (struct gdbarch *gdbarch)
 
 /* Implement the "solib_create_inferior_hook" target_so_ops method.  */
 
+#include "solib-winabi.c"
+
 static void
 windows_solib_create_inferior_hook (int from_tty)
 {
@@ -882,22 +884,19 @@ windows_solib_create_inferior_hook (int from_tty)
   if (gdbarch_ptr_bit (gdbarch) == 32)
     {
       ptr_bytes = 4;
-      peb_offset = 48;
       base_offset = 8;
     }
   else
     {
       ptr_bytes = 8;
-      peb_offset = 96;
       base_offset = 16;
     }
   CORE_ADDR tlb;
   gdb_byte buf[8];
   if (target_has_execution ()
       && target_get_tib_address (inferior_ptid, &tlb)
-      && !target_read_memory (tlb + peb_offset, buf, ptr_bytes))
+      && winabi_target_get_peb(tlb, gdbarch_ptr_bit (gdbarch) == 64, byte_order, &peb))
     {
-      CORE_ADDR peb = extract_unsigned_integer (buf, ptr_bytes, byte_order);
       if (!target_read_memory (peb + base_offset, buf, ptr_bytes))
 	exec_base = extract_unsigned_integer (buf, ptr_bytes, byte_order);
     }

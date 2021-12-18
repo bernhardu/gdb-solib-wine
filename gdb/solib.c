@@ -291,6 +291,13 @@ solib_find_1 (const char *in_pathname, int *fd, bool is_solib)
 			OPF_TRY_CWD_FIRST | OPF_RETURN_REALPATH,
 			in_pathname, O_RDONLY | O_BINARY, &temp_pathname);
 
+  /* If not found, and we're looking for a solib, search the
+     solib_search_path without forcing cwd.  */
+  if (is_solib && found_file < 0 && !solib_search_path.empty ())
+    found_file = openp (solib_search_path.c_str (),
+			OPF_RETURN_REALPATH,
+			in_pathname, O_RDONLY | O_BINARY, &temp_pathname);
+
   /* If not found, and we're looking for a solib, next search the
      solib_search_path (if any) for the basename only (ignoring the
      path).  This is to allow reading solibs from a path that differs
