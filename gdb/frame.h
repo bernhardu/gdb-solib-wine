@@ -132,6 +132,13 @@ extern bool frame_debug;
 extern struct frame_id frame_id_build (CORE_ADDR stack_addr,
 				       CORE_ADDR code_addr);
 
+/* Construct a stack-switcher frame ID.  The first parameter is the frame's constant
+   stack address (typically the outer-bound), and the second the
+   frame's constant code address (typically the entry point).
+   The special identifier address is set to indicate a wild card.  */
+extern struct frame_id frame_id_build_stack_switch (CORE_ADDR stack_addr,
+				       CORE_ADDR code_addr);
+
 /* Construct a special frame ID.  The first parameter is the frame's constant
    stack address (typically the outer-bound), the second is the
    frame's constant code address (typically the entry point),
