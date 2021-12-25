@@ -171,8 +171,8 @@ wine_solib_create_inferior_hook (int from_tty)
   */
 
 template <typename ptr_t> struct LIST_ENTRY {
-   ptr_t *Flink;
-   ptr_t *Blink;
+   ptr_t Flink;
+   ptr_t Blink;
 };
 
 template <typename ptr_t> struct UNICODE_STRING
@@ -241,10 +241,45 @@ static void wine_read_so_list(CORE_ADDR list_head, bool iswin64, enum bfd_endian
     else
     {
       LDR_DATA_TABLE_ENTRY<uint32_t> ldr;
-      if (target_read_memory (entry, (gdb_byte*)&ldr, sizeof(ldr)) != 0)
+      if (target_read_memory (entry, (gdb_byte*)&ldr, sizeof(ldr)) != 0) {
         warning (_("Error reading shared library list entry at %s"),
           paddress (current_inferior ()->arch(), entry));
-      error("TODO");
+        break;
+      }
+
+      std::vector<gdb_byte> full_name(ldr.FullDllName.Length);
+      if (target_read_memory (ldr.FullDllName.Buffer, full_name.data(), full_name.size()) != 0) {
+        warning (_("Error reading shared library full name at %s"),
+          paddress (current_inferior ()->arch(), ldr.FullDllName.Buffer));
+        break;
+      }
+
+      newobj.lm_info = std::make_unique<lm_info_svr4>();
+      lm_info_svr4 *li = gdb::checked_static_cast<lm_info_svr4 *> (newobj.lm_info.get());
+      li->l_addr = ldr.DllBase;
+      li->l_addr_p = true;
+
+      auto_obstack converted_name;
+      convert_between_encodings ("UTF-16", host_charset(),
+              full_name.data(),
+              full_name.size(),sizeof(uint16_t),&converted_name,
+              translit_none);
+      obstack_1grow (&converted_name, '\0');
+      newobj.so_original_name = (char*)obstack_base (&converted_name);
+
+      newobj.so_name = (char*)obstack_base (&converted_name);
+      // TODO: Path translation, for now just rewrite path separators
+      char *path = newobj.so_name.data();
+      while (*path) {
+        if (*path == '\\')
+          *path = '/';
+        path++;
+      }
+      // TODO: Use syswow64 - disable for pure 32-bit wine by checking NtCurrentTeb()->WowTebOffset ?
+      char *pos_system32 = strstr(newobj.so_name.data(), "system32");
+      if (pos_system32) memcpy(pos_system32, "syswow64", 8);
+
+      next_entry = extract_unsigned_integer((gdb_byte*)&ldr.InLoadOrderLinks.Flink, 4, byte_order);
     }
     newobj.wine_so_ops = &wine_so_ops;
   }
