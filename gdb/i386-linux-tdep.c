@@ -33,6 +33,7 @@
 #include "utils.h"
 #include "glibc-tdep.h"
 #include "solib-svr4.h"
+#include "solib-wine.h"
 #include "symtab.h"
 #include "arch-utils.h"
 #include "xml-syscall.h"
@@ -40,6 +41,7 @@
 
 #include "i387-tdep.h"
 #include "gdbsupport/x86-xstate.h"
+#include "x86-linux-nat.h"
 
 /* The syscall's XML filename for i386.  */
 #define XML_SYSCALL_FILENAME_I386 "syscalls/i386-linux.xml"
@@ -1075,10 +1077,47 @@ i386_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_report_signal_info (gdbarch, i386_linux_report_signal_info);
 }
 
+static bool i386_linux_get_tib_addr(CORE_ADDR *tib_addr)
+{
+  if (target_has_registers()) {
+
+    struct regcache *regcache = get_current_regcache ();
+    ptid_t ptid = regcache->ptid ();
+    int lwpid = ptid.lwp ();
+    CORE_ADDR reg_fs;
+    ps_err_e ret;
+
+    regcache_cooked_read_unsigned(get_current_regcache(), I386_FS_REGNUM, &reg_fs);
+    *tib_addr = 0;
+
+    /* similar to: td_ta_map_lwp2thr -> __td_ta_lookup_th_unique -> ps_get_thread_area -> x86_linux_get_thread_area -> ptrace (request=PTRACE_GET_THREAD_AREA) */
+    /* for most of the "magic" see: glibc-2.33/_ptl_db/td_ta_map_lwp2thr.c:156       if (ps_get_thread_area */
+    ret = x86_linux_get_thread_area(
+            lwpid,
+            (void*)(reg_fs >> 3/*DB_DESC_NELEM(ta->ta_howto_data.reg_thread_area)*/),
+            (unsigned int*)tib_addr);
+    if (ret != PS_OK) {
+      warning("x86_linux_get_thread_area error pid=%d", lwpid);
+    } else {
+      warning("tib_addr=%lx via x86_linux_get_thread_area", *tib_addr);
+    }
+    return true;
+  }
+  return false;
+}
+
+static void i386_linux_wine_init_abi(struct gdbarch_info info, struct gdbarch *gdbarch)
+{
+  i386_linux_init_abi(info, gdbarch);
+  set_solib_wine(gdbarch, i386_linux_get_tib_addr);
+}
+
 void _initialize_i386_linux_tdep ();
 void
 _initialize_i386_linux_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_i386, 0, GDB_OSABI_LINUX,
 			  i386_linux_init_abi);
+  gdbarch_register_osabi (bfd_arch_i386, 0,
+        GDB_OSABI_WINE_LINUX, i386_linux_wine_init_abi);
 }

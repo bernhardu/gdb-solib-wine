@@ -178,8 +178,8 @@ wine_solib_create_inferior_hook (int from_tty)
   */
 
 template <typename ptr_t> struct LIST_ENTRY {
-   ptr_t *Flink;
-   ptr_t *Blink;
+   ptr_t Flink;
+   ptr_t Blink;
 };
 
 template <typename ptr_t> struct UNICODE_STRING
@@ -245,10 +245,42 @@ static void wine_read_so_list(CORE_ADDR list_head, bool iswin64, enum bfd_endian
     else
     {
       LDR_DATA_TABLE_ENTRY<uint32_t> ldr;
-      if (target_read_memory (entry, (gdb_byte*)&ldr, sizeof(ldr)) != 0)
+      if (target_read_memory (entry, (gdb_byte*)&ldr, sizeof(ldr)) != 0) {
         warning (_("Error reading shared library list entry at %s"),
           paddress (target_gdbarch (), entry));
-      error("TODO");
+        break;
+      }
+
+      std::vector<gdb_byte> full_name(ldr.FullDllName.Length);
+      if (target_read_memory (ldr.FullDllName.Buffer, full_name.data(), full_name.size()) != 0) {
+        warning (_("Error reading shared library full name at %s"),
+          paddress (target_gdbarch (), ldr.FullDllName.Buffer));
+        break;
+      }
+
+      newobj->lm_info = (lm_info_base*)(uint64_t)ldr.DllBase;
+
+      auto_obstack converted_name;
+      convert_between_encodings ("UTF-16", host_charset(),
+              full_name.data(),
+              full_name.size(),sizeof(uint16_t),&converted_name,
+              translit_none);
+      obstack_1grow (&converted_name, '\0');
+      strncpy (newobj->so_original_name, (char*)obstack_base (&converted_name), SO_NAME_MAX_PATH_SIZE - 1);
+
+      strncpy (newobj->so_name, (char*)obstack_base (&converted_name), SO_NAME_MAX_PATH_SIZE - 1);
+      // TODO: Path translation, for now just rewrite path separators
+      char *path = newobj->so_name;
+      while (*path) {
+        if (*path == '\\')
+          *path = '/';
+        path++;
+      }
+      // TODO: Use syswow64 - disable for pure 32-bit wine by checking NtCurrentTeb()->WowTebOffset ?
+      char *pos_system32 = strstr(newobj->so_name, "system32");
+      if (pos_system32) memcpy(pos_system32, "syswow64", 8);
+
+      next_entry = extract_unsigned_integer((gdb_byte*)&ldr.InLoadOrderLinks.Flink, 4, byte_order);
     }
     newobj->next = 0;
     newobj->so_ops = &wine_so_ops;
