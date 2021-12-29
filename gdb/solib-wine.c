@@ -317,7 +317,7 @@ wine_same (struct so_list *gdb, struct so_list *inferior)
   struct solib_wine_ops *ops
     = (struct solib_wine_ops *) gdbarch_data (gdbarch, solib_wine_data);
 
-  if (gdb->so_ops == &wine_so_ops || inferior->so_ops == &wine_so_ops)
+  if (gdb->so_ops == &wine_so_ops && inferior->so_ops == &wine_so_ops)
   {
     return 1;
   } else {
