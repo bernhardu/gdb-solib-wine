@@ -1098,6 +1098,11 @@ static bool i386_linux_get_tib_addr(CORE_ADDR *tib_addr)
             (unsigned int*)tib_addr);
     if (ret != PS_OK) {
       warning("x86_linux_get_thread_area error pid=%d", lwpid);
+      char* tib_from_env = getenv("TIB_FROM_ENV");
+      if (tib_from_env) {
+          *tib_addr = strtol(tib_from_env, NULL, 16);
+          warning("tib_addr=%lx via TIB_FROM_ENV", *tib_addr);
+      }
     } else {
       warning("tib_addr=%lx via x86_linux_get_thread_area", *tib_addr);
     }
