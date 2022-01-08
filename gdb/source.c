@@ -763,6 +763,73 @@ prepare_path_for_appending (const char *path)
   return path;
 }
 
+/* This function splits the input into its parts.
+   Then reads each directory and compares case insensitive
+   each entry, and if found takes the first match.
+   If no error occurred the input string is overwritten
+   with the path retrieved from the filesystem.
+*/
+static void
+search_case_insensitive(char* path)
+{
+    if (strchr(path, ':'))
+        return;
+
+    std::string input = path;
+    bool is_absolute = input.find('/') == 0;
+
+    std::vector<std::string> parts;
+    std::size_t pos;
+    while ((pos = input.find('/')) != std::string::npos) {
+        if (pos > 0) {
+            parts.push_back(input.substr(0, pos));
+        }
+        input.erase(0, pos + 1);
+    }
+    if (input.length() > 0) {
+        parts.push_back(input);
+    }
+
+    std::string found_path;
+    std::string enum_path;
+    for (std::vector<std::string>::iterator i = parts.begin(); i != parts.end(); i++) {
+        if (i->empty()) {
+            continue;
+        }
+        enum_path = found_path;
+        if (enum_path.empty()) {
+            enum_path = is_absolute ? std::string("/") : std::string(".");
+        }
+
+        DIR *dir;
+        struct dirent *ent;
+        if ((dir = opendir(enum_path.c_str())) != NULL) {
+            bool found = false;
+            while ((ent = readdir(dir)) != NULL) {
+                if (strcasecmp(i->c_str(), ent->d_name) == 0) {
+                    found = true;
+                    if (!found_path.empty() || is_absolute) {
+                        found_path += std::string("/") + std::string(ent->d_name);
+                    } else {
+                        found_path = std::string(ent->d_name);
+                    }
+                    break;
+                }
+            }
+            closedir(dir);
+            if (!found)
+                return;
+        } else {
+            return;
+        }
+    }
+
+    if (strcmp(path, found_path.c_str()) != 0) {
+        warning("changing %s to %s", path, found_path.c_str());
+        strcpy(path, found_path.c_str());
+    }
+}
+
 /* Open a file named STRING, searching path PATH (dir names sep by some char)
    using mode MODE in the calls to open.  You cannot use this function to
    create files (O_CREAT).
@@ -834,10 +901,12 @@ openp (const char *path, openp_flags opts, const char *string,
     {
       int i, reg_file_errno;
 
-      if (is_regular_file (string, &reg_file_errno))
+      filename = (char *) alloca (strlen (string) + 1);
+      strcpy (filename, string);
+      search_case_insensitive(filename);
+
+      if (is_regular_file (filename, &reg_file_errno))
 	{
-	  filename = (char *) alloca (strlen (string) + 1);
-	  strcpy (filename, string);
 	  fd = gdb_open_cloexec (filename, mode, 0).release ();
 	  if (fd >= 0)
 	    goto done;
@@ -927,6 +996,7 @@ openp (const char *path, openp_flags opts, const char *string,
 
       strcat (filename + len, SLASH_STRING);
       strcat (filename, string);
+      search_case_insensitive(filename);
 
       if (is_regular_file (filename, &reg_file_errno))
 	{
