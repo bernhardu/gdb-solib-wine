@@ -1008,6 +1008,8 @@ i386_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 				  i386_linux_get_syscall_number);
 }
 
+extern void execute_command (const char *, int);
+
 static bool i386_linux_get_tib_addr(CORE_ADDR *tib_addr)
 {
   if (target_has_registers()) {
@@ -1021,6 +1023,15 @@ static bool i386_linux_get_tib_addr(CORE_ADDR *tib_addr)
     regcache_cooked_read_unsigned(regcache, I386_FS_REGNUM, &reg_fs);
     *tib_addr = 0;
 
+    //char* gdb_under_rr = getenv("GDB_UNDER_RR");
+    //if (gdb_under_rr) {
+    //  execute_command ("python output = gdb.execute('when-tid', to_string=True)", false);
+    //  execute_command ("python output = output.replace('Current tid: ', '')", false);
+    //  execute_command ("python os.environ[\"TID_FROM_ENV\"] = output", false);
+    //  char* tid_str = getenv("TID_FROM_ENV");
+    //  lwpid = atoi(tid_str);
+    //}
+
     /* similar to: td_ta_map_lwp2thr -> __td_ta_lookup_th_unique -> ps_get_thread_area -> x86_linux_get_thread_area -> ptrace (request=PTRACE_GET_THREAD_AREA) */
     /* for most of the "magic" see: glibc-2.33/_ptl_db/td_ta_map_lwp2thr.c:156       if (ps_get_thread_area */
     ret = x86_linux_get_thread_area(
@@ -1029,6 +1040,19 @@ static bool i386_linux_get_tib_addr(CORE_ADDR *tib_addr)
             (unsigned int*)tib_addr);
     if (ret != PS_OK) {
       warning("x86_linux_get_thread_area error pid=%d", lwpid);
+      char* tib_from_env = getenv("TIB_FROM_ENV");
+      if (tib_from_env) {
+        *tib_addr = strtol(tib_from_env, NULL, 16);
+        warning("tib_addr=%lx via TIB_FROM_ENV", *tib_addr);
+      } else {
+        char* gdb_under_rr = getenv("GDB_UNDER_RR");
+        if (gdb_under_rr) {
+          execute_command ("echo Execute following to fill _tlb within a rr session:\n\n", false);
+          execute_command ("echo  set $_tlb = pthread_getspecific(teb_key)\n", false);
+          execute_command ("echo  python import os\n", false);
+          execute_command ("echo  python os.environ[\"TIB_FROM_ENV\"] = str(gdb.convenience_variable (\"_tlb\"))\n\n", false);
+        }
+      }
     } else {
       warning("tib_addr=%lx via x86_linux_get_thread_area", *tib_addr);
     }
