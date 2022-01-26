@@ -1461,7 +1461,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 	  switch (p[1])
 	    {
 	    case 'S':
-	      pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
+	      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
 				VAR_DOMAIN, LOC_STATIC,
 				data_sect_index,
 				psymbol_placement::STATIC,
@@ -1472,7 +1472,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 	    case 'G':
 	      /* The addresses in these entries are reported to be
 		 wrong.  See the code that reads 'G's for symtabs.  */
-	      pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
+	      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
 				VAR_DOMAIN, LOC_STATIC,
 				data_sect_index,
 				psymbol_placement::GLOBAL,
@@ -1491,7 +1491,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 		  || (p == namestring + 1
 		      && namestring[0] != ' '))
 		{
-		  pst->add_psymbol (gdb::string_view (sym_name, sym_len),
+		  if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len),
 				    true, STRUCT_DOMAIN, LOC_TYPEDEF, -1,
 				    psymbol_placement::STATIC,
 				    0, psymtab_language,
@@ -1499,7 +1499,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 		  if (p[2] == 't')
 		    {
 		      /* Also a typedef with the same name.  */
-		      pst->add_psymbol (gdb::string_view (sym_name, sym_len),
+		      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len),
 					true, VAR_DOMAIN, LOC_TYPEDEF, -1,
 					psymbol_placement::STATIC,
 					0, psymtab_language,
@@ -1512,7 +1512,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 	    case 't':
 	      if (p != namestring)	/* a name is there, not just :T...  */
 		{
-		  pst->add_psymbol (gdb::string_view (sym_name, sym_len),
+		  if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len),
 				    true, VAR_DOMAIN, LOC_TYPEDEF, -1,
 				    psymbol_placement::STATIC,
 				    0, psymtab_language,
@@ -1574,7 +1574,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 			;
 		      /* Note that the value doesn't matter for
 			 enum constants in psymtabs, just in symtabs.  */
-		      pst->add_psymbol (gdb::string_view (p, q - p), true,
+		      if (pst) pst->add_psymbol (gdb::string_view (p, q - p), true,
 					VAR_DOMAIN, LOC_CONST, -1,
 					psymbol_placement::STATIC, 0,
 					psymtab_language,
@@ -1593,7 +1593,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 
 	    case 'c':
 	      /* Constant, e.g. from "const" in Pascal.  */
-	      pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
+	      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
 				VAR_DOMAIN, LOC_CONST, -1,
 				psymbol_placement::STATIC, 0,
 				psymtab_language,
@@ -1649,7 +1649,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 		  pst->set_text_low (nlist.n_value);
 		  textlow_not_set = 0;
 		}
-	      pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
+	      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
 				VAR_DOMAIN, LOC_BLOCK,
 				SECT_OFF_TEXT (objfile),
 				psymbol_placement::STATIC,
@@ -1709,7 +1709,7 @@ read_dbx_symtab (minimal_symbol_reader &reader,
 		  pst->set_text_low (nlist.n_value);
 		  textlow_not_set = 0;
 		}
-	      pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
+	      if (pst) pst->add_psymbol (gdb::string_view (sym_name, sym_len), true,
 				VAR_DOMAIN, LOC_BLOCK,
 				SECT_OFF_TEXT (objfile),
 				psymbol_placement::GLOBAL,
